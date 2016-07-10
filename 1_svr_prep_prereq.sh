@@ -56,27 +56,14 @@ until [ -f /tmp/os_logs/svr_prep.log ]; do
   sed -i "s/enforcing/disabled/g" /etc/selinux/config /etc/selinux/config
   sleep 3
 
-  printf ${GREEN}"Sourcing Global Research proxy"${NC}
-  echo "export http_proxy=http://proxy.research.ge.com:8080" >> /etc/environment
-  echo "export https_proxy=http://proxy.research.ge.com:8080" >> /etc/environment
-  echo "export no_proxy=127.0.0.1,localhost,ge.com,3.1.52.41,3.1.52.42" >> /etc/environment
-  source /etc/environment
-
-  printf ${GREEN}"Installing GE SSL certs"${NC}
-  update-ca-trust enable
-  wget -O /etc/pki/ca-trust/source/anchors/GE_External_Certificate1.pem http://Internet.ge.com/GE_External_Certificate1.pem
-  wget -O /etc/pki/ca-trust/source/anchors/GE_External_Certificate2.pem http://Internet.ge.com/GE_External_Certificate2.pem
-  update-ca-trust extract
-  sleep 2
-
   printf ${GREEN}"Setting up hosts file (results not displayed in terminal)"${NC}
   # Add extra echo lines if setup is greater that 2 nodes
   mv /etc/hosts /tmp
   cat > /etc/hosts <<EOF
 127.0.0.1   $HOST_CTL localhost localhost.localdomain localhost4 localhost4.localdomain4
 ::1         localhost localhost.localdomain localhost6 localhost6.localdomain6
-3.1.52.41       $HOST_CTL
-3.1.52.42       $HOST_COM1
+192.168.2.10       $HOST_CTL
+192.168.2.11       $HOST_COM1
 EOF
 
   printf ${GREEN}"Configuring IPv4 forwarding"${NC}
@@ -109,13 +96,13 @@ until [ -f /tmp/os_logs/os_prereq.log ]; do
   sed -i "20,23d" /etc/chrony.conf
   sleep 2
 
-  if [ "$HOST" == "ats-controller" ]; then
+  if [ "$HOST" == "controller" ]; then
     sed -i "18 a server "$NTP1" iburst" /etc/chrony.conf
     sed -i "19 a server "$NTP2" iburst" /etc/chrony.conf
     sed -i "20 a server "$NTP3" iburst" /etc/chrony.conf
     sed -i "21 a server "$NTP4" iburst" /etc/chrony.conf
-    sed -i "22 a allow 3.1.45.0/24" /etc/chrony.conf
-  elif [ "$HOST" != "ats-controller" ]; then
+    sed -i "22 a allow 192.168.2.0/24" /etc/chrony.conf
+  elif [ "$HOST" != "controller" ]; then
     sed -i "18 a server "$HOST_CTL" iburst" /etc/chrony.conf
   fi
 
@@ -143,7 +130,7 @@ until [ -f /tmp/os_logs/os_prereq.log ]; do
   echo ${GREEN}"Installing OpenStack client"${NC}
   yum install -y python-openstackclient
 
-  if [ "$HOST" == "ats-controller" ]; then
+  if [ "$HOST" == "controller" ]; then
     echo ${GREEN}"Install SQL database-MariaDB"${NC}
     yum install -y mariadb mariadb-server python2-PyMySQL
 
@@ -151,7 +138,7 @@ until [ -f /tmp/os_logs/os_prereq.log ]; do
     touch /etc/my.cnf.d/openstack.cnf
     cat << EOF > /etc/my.cnf.d/openstack.cnf
 [mysqld]
-bind-address = 3.1.45.8
+bind-address = 192.168.2.10
 
 default-storage-engine = innodb
 innodb_file_per_table
@@ -212,7 +199,7 @@ EOF
 
     printf ${GREEN}"Verifying OVS bridge"${NC}
     ovs-vsctl show
-  elif [ "$HOST" != "ats-controller" ]; then
+  elif [ "$HOST" != "controller" ]; then
   printf ${GREEN}"Installing Openvswitch"${NC}
   yum install -y openstack-neutron-openvswitch
 
